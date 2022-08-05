@@ -30,7 +30,7 @@ The IP interfaces were configured as follows:
 
     ```
     interface Loopback0
-    ip address 1.0.0.1 255.192.0.0
+    ip address 1.0.1.1 255.255.255.0
     ```
 - an interface to link R1 to the IXP LAN:
 
@@ -60,7 +60,7 @@ OSPF has been configured as follows:
 
     ```
     network 1.96.0.0 0.0.0.3 area 0
-    network 1.0.0.0 0.63.255.255 area 0
+    network 1.0.1.0 0.0.0.255 area 0
     ```
 
 Finally BGP has been configured as follows:
