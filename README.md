@@ -44,7 +44,7 @@ The IP interfaces were configured as follows:
 
     ```
     interface GigabitEthernet2/0
-    ip address 1.96.0.1 255.255.255.252
+    ip address 1.29.0.1 255.255.255.252
     no shutdown
     ```
 
@@ -59,7 +59,7 @@ OSPF has been configured as follows:
 * the two networks (i.e., `lo0` and `g2/0`) are included inside the process assigned to backbone area (i.e., `area 0`):
 
     ```
-    network 1.96.0.0 0.0.0.3 area 0
+    network 1.29.0.0 0.0.0.3 area 0
     network 1.0.1.0 0.0.0.255 area 0
     ```
 
@@ -68,9 +68,9 @@ Finally BGP has been configured as follows:
 * for the iBGP peer R1 `next-hop-self` was used to mask the IXP addresses (to avoid DDoS attacks) and also the incoming routes were filtered on the basis of the value of the comunity through a specific `route map comm`:
 
     ```
-    neighbor 1.96.0.2 remote-as 100
-    neighbor 1.96.0.2 next-hop-self
-    neighbor 1.96.0.2 route-map comm in
+    neighbor 1.29.0.2 remote-as 100
+    neighbor 1.29.0.2 next-hop-self
+    neighbor 1.29.0.2 route-map comm in
     ```
 * a peer group has been defined to avoid redundancy in the IXP neighbors configuration. In particular, input and output filters have been applied and the community value has been enabled:
 
