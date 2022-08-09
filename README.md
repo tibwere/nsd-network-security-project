@@ -13,6 +13,9 @@ __Authors__:
 
     1. [Router R1](#router-r1)
     2. [Routers R2 and R3](#routers-r2-and-r3)
+    3. [Router R4](#router-r4)
+    4. [Routers R5 and R6](#routers-r5-and-r6)
+    5. [Routers R7 and R8](#routers-r7-and-r8)
 
 ## Network topology
 
@@ -26,13 +29,21 @@ The configuration scripts for each router inside the topology will be commented 
 ### Router R1
 The IP interfaces were configured as follows:
 
-- a loopback interface to simulate the presence of a host (useful for checking connectivity via `ping`/`traceroute`):
+* a loopback interface used for management purpose (i.e. iBGP configuration):
 
     ```
     interface Loopback0
+    ip address 1.1.1.1 255.255.255.255
+    ```
+
+* a loopback interface used to simulate the presence of a host (useful for checking connectivity via `ping`/`traceroute`):
+
+    ```
+    interface Loopback1
     ip address 1.0.1.1 255.255.255.0
     ```
-- an interface to link R1 to the IXP LAN:
+
+* an interface used to link R1 to the IXP LAN:
 
     ```
     interface GigabitEthernet1/0
@@ -40,7 +51,7 @@ The IP interfaces were configured as follows:
     no shutdown
     ```
 
-- an interface to link R1 to R4:
+* an interface used to link R1 to R4:
 
     ```
     interface GigabitEthernet2/0
@@ -56,22 +67,31 @@ OSPF has been configured as follows:
     router ospf 1
     ```
 
-* the two networks (i.e., `lo0` and `g2/0`) are included inside the process assigned to backbone area (i.e., `area 0`):
+* the identifier for the router has been set, using the `lo0` interface:
 
     ```
+    router-id 1.1.1.1
+    ```
+
+* the networks are included inside the process assigned to backbone area (i.e., `area 0`):
+
+    ```
+    network 1.1.1.1 0.0.0.0 area 0
     network 1.29.0.0 0.0.0.3 area 0
     network 1.0.1.0 0.0.0.255 area 0
     ```
 
-Finally BGP has been configured as follows:
+BGP has been configured as follows:
 
-* for the iBGP peer R1 `next-hop-self` was used to mask the IXP addresses (to avoid DDoS attacks) and also the incoming routes were filtered on the basis of the value of the comunity through a specific `route map comm`:
+* for the iBGP peer R1, `next-hop-self` was used to mask the IXP addresses (to avoid DDoS attacks) and also the incoming routes were filtered on the basis of the value of the comunity through a specific `route map comm`:
 
     ```
-    neighbor 1.29.0.2 remote-as 100
-    neighbor 1.29.0.2 next-hop-self
-    neighbor 1.29.0.2 route-map comm in
+    neighbor 4.4.4.4 remote-as 100
+    neighbor 4.4.4.4 next-hop-self
+    neighbor 4.4.4.4 update-source Loopback0
+    neighbor 4.4.4.4 route-map comm in
     ```
+
 * a peer group has been defined to avoid redundancy in the IXP neighbors configuration. In particular, input and output filters have been applied and the community value has been enabled:
 
     ```
@@ -84,35 +104,274 @@ Finally BGP has been configured as follows:
 * finally, the prefixes coming in from the IXP peers were filtered:
 
     ```
-    neighbor 10.0.0.X prefix-list pl-peerX00 in
+    neighbor 10.0.0.2 prefix-list pl-peer200 in
+    ! [...]
+    neighbor 10.0.0.3 prefix-list pl-peer200 in
     ```
 
 ### Routers R2 and R3
 
-R2 and R3 routers have a simpler setup:
+Since R2 and R3 have similar configurations, the analysis of only the former is shown below.
 
-* the IP interfaces were configured as showed before:
+The IP interfaces were configured as follows:
+
+* a loopback interface used to simulate the presence of a host connected to the VPN (useful for checking connectivity via `ping`/`traceroute`):
 
     ```
     interface Loopback0
     ip address 2.0.0.1 255.0.0.0
-    !
+    ```
+
+* an interface used to reach AS 100 :
+    ```
     interface GigabitEthernet1/0
     ip address 10.0.0.2 255.255.255.0
     no shutdown
     ```
+
 * as there are no other routers inside the AS it is not necessary to configure OSPF;
-* BGP was configured similarly to router 1:
+
+* BGP was configured as follows:
 
     * the local network has been advertised:
 
         ```
-        network X.0.0.0 mask 255.0.0.0
+        network 2.0.0.0 mask 255.0.0.0
         ```
 
     * finally, the prefixes coming in from the IXP peers were filtered:
 
         ```
-        neighbor 10.0.0.X remote-as X00
-        neighbor 10.0.0.X prefix-list pl-peerX00 in
+        neighbor 10.0.0.1 remote-as 100
+        neighbor 10.0.0.1 prefix-list pl-peer100 in
+        neighbor 10.0.0.3 remote-as 300
+        neighbor 10.0.0.3 prefix-list pl-peer300 in
         ```
+
+### Router R4
+The IP interfaces were configured as follows:
+
+* a loopback interface used for management purpose (i.e. iBGP configuration):
+
+    ```
+    interface Loopback0
+    ip address 4.4.4.4 255.255.255.255
+    ```
+
+* a loopback interface used to simulate the presence of a host (useful for checking connectivity via `ping`/`traceroute`):
+
+    ```
+    interface Loopback1
+    ip address 1.0.4.1 255.255.255.0
+    ```
+
+* an interface used to link R4 to R5, where `mpls ip` was used because packets between the two customers pass through this interface:
+
+    ```
+    interface GigabitEthernet1/0
+    mpls ip
+    ip address 1.29.0.5 255.255.255.252
+    no shutdown
+    ```
+
+* an interface used to link R4 to R1:
+
+    ```
+    interface GigabitEthernet2/0
+    ip address 1.29.0.2 255.255.255.252
+    no shutdown
+    ```
+
+* an interface used to link R4 to R6, where `mpls ip` was used because packets between the two customers pass through this interface:
+
+    ```
+    interface GigabitEthernet3/0
+    mpls ip
+    ip address 1.29.0.9 255.255.255.252
+    no shutdown
+    ```
+
+OSPF has been configured as follows:
+
+* the process has been defined:
+
+    ```
+    router ospf 1
+    ```
+
+* the identifier for the router has been set, using the `lo0` interface:
+
+    ```
+    router-id 4.4.4.4
+    ```
+
+* the networks are included inside the process assigned to backbone area (i.e., `area 0`):
+
+    ```
+    network 4.4.4.4 0.0.0.0 area 0
+    network 1.29.0.0 0.0.0.3 area 0
+    network 1.29.0.4 0.0.0.3 area 0
+    network 1.29.0.8 0.0.0.3 area 0
+    network 1.0.4.0 0.0.0.255 area 0
+    ```
+
+In order to make the correct advertisement of the prefix 1.0.0.0/9 a static route has also been added:
+
+```
+ip route 1.0.0.0 255.128.0.0 null0
+```
+
+BGP has been configured as follows:
+
+* the 1.0.0.0/9 network is announced, also associating the community value:
+
+    ```
+    network 1.0.0.0 mask 255.128.0.0 route-map comm
+    ```
+
+* iBGP configurations with respect to R1, R5 and R6 are similar:
+
+    ```
+    neighbor 1.1.1.1 remote-as 100
+    neighbor 1.1.1.1 route-reflector-client
+    neighbor 1.1.1.1 update-source Loopback0
+    neighbor 1.1.1.1 next-hop-self
+    neighbor 1.1.1.1 send-community
+    neighbor 5.5.5.5 remote-as 100
+    neighbor 5.5.5.5 route-reflector-client
+    neighbor 5.5.5.5 update-source Loopback0
+    neighbor 6.6.6.6 remote-as 100
+    neighbor 6.6.6.6 route-reflector-client
+    neighbor 6.6.6.6 update-source Loopback0
+    ```
+
+    where:
+
+    * towards R1 the community field is enabled to filter the packets
+
+    * `route-reflector-client` is used for R4 to announce to R5 and R6 the routes learned from R1 to 2.0.0.0/8 and 3.0.0.0/8 (see [RFC 4456](https://www.rfc-editor.org/rfc/rfc4456.html) and the answer on [networkengineering.stackexchange.com](https://networkengineering.stackexchange.com/a/44909))
+
+### Router R5 and R6
+
+Since R5 and R6 have similar configurations, the analysis of only the former is shown below.
+
+The VRF for the `customers` VPN is defined by specifying route distinguisher and target:
+
+    ```
+    ip vrf customers
+    rd 100:0
+    route-target export 100:1
+    route-target import 100:1
+    ```
+
+The IP interfaces were configured as follows:
+
+* a loopback interface used for management purpose (i.e. iBGP configuration):
+
+    ```
+    interface Loopback0
+    ip address 5.5.5.5 255.255.255.255
+    ```
+
+* a loopback interface used to simulate the presence of a host (useful for checking connectivity via `ping`/`traceroute`):
+
+    ```
+    interface Loopback1
+    ip address 1.0.5.1 255.255.255.0
+    ```
+
+* an interface used to link R5 to R4, where `mpls ip` was used because packets between the two customers pass through this interface:
+
+    ```
+    interface GigabitEthernet1/0
+    mpls ip
+    ip address 1.29.0.6 255.255.255.252
+    no shutdown
+    ```
+
+* an interface used to link R5 to R7, where `ip vrf forwarding customers` was used to enable VRF:
+
+    ```
+    interface GigabitEthernet2/0
+    ip vrf forwarding customers
+    ip address 10.0.1.1 255.255.255.252
+    no shutdown
+    ```
+
+OSPF has been configured as follows:
+
+* the process has been defined:
+
+    ```
+    router ospf 1
+    ```
+
+* the identifier for the router has been set, using the `lo0` interface:
+
+    ```
+    router-id 5.5.5.5
+    ```
+
+* the networks are included inside the process assigned to backbone area (i.e., `area 0`):
+
+    ```
+    network 5.5.5.5 0.0.0.0 area 0
+    network 1.29.0.4 0.0.0.3 area 0
+    network 1.0.5.0 0.0.0.255 area 0
+    ```
+
+A static route for VRF forwarding has been added:
+
+```
+ip route vrf customers 192.168.0.0 255.255.255.0 10.0.1.2
+```
+
+The iBGP relationship with other routers inside the AS are defined:
+
+```
+router bgp 100
+neighbor 4.4.4.4 remote-as 100
+neighbor 6.6.6.6 remote-as 100
+neighbor 6.6.6.6 update-source Loopback0
+```
+
+VPNV4 peerings is enabled:
+
+```
+address-family vpnv4
+neighbor 6.6.6.6 activate
+neighbor 6.6.6.6 send-community extended
+exit-address-family
+```
+
+BGP advertisements of VRF are switched on:
+```
+address-family ipv4 vrf customers
+network 192.168.0.0
+exit-address-family
+```
+
+### Router R7 and R8
+
+Since R7 and R8 have similar configurations, the analysis of only the former is shown below.
+
+The IP interfaces were configured as follows:
+
+* a loopback interface used to simulate the presence of a host connected to the VPN (useful for checking connectivity via `ping`/`traceroute`):
+
+    ```
+    interface Loopback0
+    ip address 192.168.0.1 255.255.255.0
+    ```
+
+* an interface used to link R7 to R5:
+    ```
+    interface GigabitEthernet1/0
+    ip address 10.0.1.2 255.255.255.252
+    no shutdown
+    ```
+
+A static route for any packet from any IP address with any subnet mask:
+```
+ip route 0.0.0.0 0.0.0.0 10.0.1.1
+```
