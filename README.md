@@ -257,12 +257,12 @@ Since R5 and R6 have similar configurations, the analysis of only the former is 
 
 The VRF for the `customers` VPN is defined by specifying route distinguisher and target:
 
-    ```
-    ip vrf customers
-    rd 100:0
-    route-target export 100:1
-    route-target import 100:1
-    ```
+```
+ip vrf customers
+rd 100:0
+route-target export 100:1
+route-target import 100:1
+```
 
 The IP interfaces were configured as follows:
 
