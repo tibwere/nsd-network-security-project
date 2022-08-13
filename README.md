@@ -247,9 +247,9 @@ BGP has been configured as follows:
 
     where:
 
-    * towards R1 the community field is enabled to filter the packets
+    * towards R1 the community field is enabled to filter the incoming prefixes;
 
-    * `route-reflector-client` is used for R4 to announce to R5 and R6 the routes learned from R1 to 2.0.0.0/8 and 3.0.0.0/8 (see [RFC 4456](https://www.rfc-editor.org/rfc/rfc4456.html) and the answer on [networkengineering.stackexchange.com](https://networkengineering.stackexchange.com/a/44909))
+    * `route-reflector-client` is used for R4 to announce to R5 and R6 the routes learned from R1 to 2.0.0.0/8 and 3.0.0.0/8 (see [RFC 4456](https://www.rfc-editor.org/rfc/rfc4456.html) and the answer on [networkengineering.stackexchange.com](https://networkengineering.stackexchange.com/a/44909)).
 
 ### Router R5 and R6
 
