@@ -406,6 +406,8 @@ ip route 0.0.0.0 0.0.0.0 10.0.1.1
 
 ## Test cases
 
+### BGP/MPLS VPN
+
 1. examine MPLS forwarding table on R5/R6 (_there should be VPNs configured_):
 
     ```
@@ -434,6 +436,6 @@ ip route 0.0.0.0 0.0.0.0 10.0.1.1
 
     and then verify the connectivity using;
 
-        ```
-        ping 192.168.X.2 # where x is 1 if executed on customer-a and 0 otherwise
-        ```
+    ```
+    ping 192.168.X.2 # where x is 1 if executed on customer-a and 0 otherwise
+    ```
