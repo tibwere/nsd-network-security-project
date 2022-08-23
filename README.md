@@ -22,7 +22,7 @@ __Authors__:
 
 The reference topology for the scripts presented in the following sections is the one shown in the following figure.
 
-![Reference topology](./figs/topology.png "Reference topology")
+![Reference topology](./topology.png "Reference topology")
 
 ## Routers configuration
 The configuration scripts for each router inside the topology will be commented on in the following sections.
@@ -275,7 +275,7 @@ BGP has been configured as follows:
 
     * `route-reflector-client` is used for R4 to announce to R5 and R6 the routes learned from R1 to 2.0.0.0/8 and 3.0.0.0/8 (see [RFC 4456](https://www.rfc-editor.org/rfc/rfc4456.html) and the answer on [networkengineering.stackexchange.com](https://networkengineering.stackexchange.com/a/44909)).
 
-### Router R5 and R6
+### Routers R5 and R6
 
 Since R5 and R6 have similar configurations, the analysis of only the former is shown below.
 
@@ -376,7 +376,7 @@ network 192.168.0.0
 exit-address-family
 ```
 
-### Router R7 and R8
+### Routers R7 and R8
 
 Since R7 and R8 have similar configurations, the analysis of only the former is shown below.
 
@@ -420,18 +420,18 @@ ip route 0.0.0.0 0.0.0.0 10.0.1.1
     show ip route vrf customers
     ```
 
-3. configure the customer hosts using the `scripts/hosts/customer.sh` script with sudo privileges as follows:
+3. configure the customer hosts using the `scripts/hosts/setup_customer.sh` script with sudo privileges as follows:
 
     * on `customer-A`:
 
         ```
-        /path/to/customers.sh 192.168.0.2 192.168.0.1
+        /path/to/setup_customers.sh 192.168.0.2 192.168.0.1
         ```
 
     * on `customer-B`:
 
         ```
-        /path/to/customers.sh 192.168.1.2 192.168.1.1
+        /path/to/setup_customers.sh 192.168.1.2 192.168.1.1
         ```
 
     and then verify the connectivity using;
