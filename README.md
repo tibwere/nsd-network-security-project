@@ -19,11 +19,11 @@ __Authors__:
 3. [OpenVPN configuration](#openvpn-configuration)
 
     1. [Certification management](#certification-management)
-    2. [Client 1 configuration](#client-1-configuration)
-    3. [Client 2 configuration](#client-2-configuration)
-    4. [Server configuration](#server-configuration)
+    2. [Server configuration](#server-configuration)
+    3. [Client 1 configuration](#client-1-configuration)
+    4. [Client 2 configuration](#client-2-configuration)
 
-4. [Firewall configuration](#firewall-configutation) 
+4. [Firewall configuration](#firewall-configuration) 
 5. [Test cases](#test-cases)
 
 ## Network topology
