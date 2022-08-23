@@ -16,7 +16,15 @@ __Authors__:
     3. [Router R4](#router-r4)
     4. [Routers R5 and R6](#routers-r5-and-r6)
     5. [Routers R7 and R8](#routers-r7-and-r8)
-3. [Test cases](#test-cases)
+3. [OpenVPN configuration](#openvpn-configuration)
+
+    1. [Certification management](#certification-management)
+    2. [Client 1 configuration](#client-1-configuration)
+    3. [Client 2 configuration](#client-2-configuration)
+    4. [Server configuration](#server-configuration)
+
+4. [Firewall configuration](#firewall-configutation) 
+5. [Test cases](#test-cases)
 
 ## Network topology
 
@@ -404,6 +412,221 @@ A static route for any packet from any IP address with any subnet mask:
 ip route 0.0.0.0 0.0.0.0 10.0.1.1
 ```
 
+## OpenVPN configuration
+The overlay OpenVPN is composed by three entities:
+- one server that is the host in AS 100;
+- two clients:
+    - client 1 is the host in AS 300;
+    - client 2 is the gateway and firewall in AS 200.
+
+### Certification management
+1. Download one of releases of EasyRSA (e.g., `v.3.1.0`):
+    ```
+    wget https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.0/EasyRSA-3.1.0.tgz && tar xf EasyRSA-3.1.0.tgz && cd EasyRSA-3.1.0/
+    ```
+2. Initialize easy-rsa and create CA certificate:
+
+    ```
+    ./easyrsa init-pki && ./easyrsa build-ca
+    ```
+
+2. Generate a certificate and the private key of server:
+
+    ```
+    ./easyrsa build-server-full server
+    ```
+3. Generate certificates and keys for clients:
+```
+    ./easyrsa build-client-full client1 && ./easyrsa build-client-full client2
+```
+4. Generate Diffie-Hellman parameters for OpenVPN (_long time_):
+```
+./easyrsa gen-dh
+```
+
+### Server configuration
+The network part of server configuration is the following:
+- the following lines to configure the network towards the WAN:
+    ```
+    ip link set enp0s3 up
+    ip addr flush dev enp0s3
+    ip addr add 1.10.11.2/24 dev enp0s3
+    ip route add default via 1.10.11.1
+    ```
+- since that the server receives packets not as end point, it must be able to forward packet:
+    ```
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    ```
+The OpenVPN part of server configuration is the following:
+- the following lines to set the listening port for the server is 1194, the encapsulation format is udp and the virtual interface is tun:
+    ```
+    port 1194
+    proto udp
+    dev tun
+    ```
+- the following lines to set the path of generated files in the phase of certification management:
+    ```
+    ca ca.crt
+    cert server.crt
+    key server.key
+    dh dh.pem
+    ```
+- the following line to tell OpenVPN to run as a server instance and to allocate a 192.168.100.0/24 VPN address range and the servers' virtual adapter has ip 192.168.100.1 beacuse is the first valid ip address:
+    ```
+    server 192.168.100.0 255.255.255.0
+    ```
+- the following line tells each client that if they need to send a packet to the 2.0.0.0/11 network they must pass it to the OpenVPN process
+    ```
+    push "route 2.0.0.0 255.224.0.0"
+    ```
+- the following line has the same role of previous line, but it is for the server:
+    ```
+    route 2.0.0.0 255.224.0.0
+    ```
+- the following line to enable overlay client to client communication through the VPN server:
+    ```
+    client-to-client
+    ```
+- the following line to set the path to the per-client specific configuration directory:
+    ```
+    client-config-dir ccd
+    ```
+- the following line to tell that the ping every 10 seconds and assume that remote peer is down if no ping received during a 120 second time period:
+    ```
+    keepalive 10 120
+    ```
+
+The content of of `ccd` folder is the following:
+- a file that assigns ip 192.168.100.101 to client 1 and ip 192.168.100.102 to VPN gateway
+    ```
+    ifconfig-push 192.168.100.101 192.168.100.102
+    ```
+- a file that:
+    - assigns ip 192.168.100.105 to client 2 and ip 192.168.100.106 to VPN gateway
+        ```
+        ifconfig-push 192.168.100.105 192.168.100.106
+        ```
+    - contains the following line because when the server receive one packet with destination ip in 2.0.0.0/11 must be select the tunnel towards the client 2
+        ```
+        iroute 2.0.0.0 255.224.0.0
+        ```
+
+### Client 1 configuration
+The network part of server configuration is the following:
+```
+ip link set enp0s3 up
+ip addr flush dev enp0s3
+ip addr add 3.30.33.2/24 dev enp0s3
+ip route add default via 3.30.33.1
+```
+
+The OpenVPN part of client 1 configuration is composed by:
+- the following lines to tell that it is a OpenVPN client, the encapsulation format is udp and the virtual interface is tun:
+    ```
+    client
+    proto udp
+    dev tun
+    ```
+- the following lines to set the path of generated files in the phase of certification management:
+    ```
+    ca ca.crt
+    cert client1.crt
+    key client1.key
+    ```
+- the following line to set 1.10.11.2 as server ip address and 1194 as server listening port:
+    ```
+    remote 1.10.11.2 1194
+    ```
+
+### Client 2 configuration
+The network part of server configuration is the following:
+- the following lines to configure the network towards the WAN:
+    ```
+    ip link set enp0s3 up
+    ip addr flush dev enp0s3
+    ip addr add 2.32.22.2/30 dev enp0s3
+    ip route add default via 2.32.22.1
+    ```
+- the following lines to configure the network towards the datacenter:
+    ```
+    ip link set enp0s8 up
+    ip addr flush dev enp0s8
+    ip addr add 2.10.10.1/24 dev enp0s8
+    ip route add 2.0.0.0/11 via 2.10.10.254
+    ```
+- since that this client receives packets not as end point, it must be able to forward packet:
+    ```
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    ```
+
+The OpenVPN part of client 2 configuration is composed by:
+- the following lines to tell that it is a OpenVPN client, the encapsulation format is udp and the virtual interface is tun:
+    ```
+    client
+    proto udp
+    dev tun
+    ```
+- the following lines to set the path of generated files in the phase of certification management:
+    ```
+    ca ca.crt
+    cert client2.crt
+    key client2.key
+    ```
+- the following line to set 1.10.11.2 as server ip address and 1194 as server listening port:
+    ```
+    remote 1.10.11.2 1194
+    ```
+
+## Firewall configuration
+
+The firewall configuration is implemented in the host in AS 200 and it has the following content:
+- the following line to flush the rules:
+    ```
+    iptables -F
+    ```
+- the following lines to set the default policies as DROP for INPUT, OUTPUT and FORWARD:
+    ```
+    iptables -P FORWARD DROP
+    iptables -P INPUT DROP
+    iptables -P OUTPUT DROP
+    ```
+- the forward chain is the following:
+    - the following rule allow to forward packet from enp0s8 (interface to VXLAN) to tun0 (tunnel to WAN) when the destination ip is 1.10.11.2 (ip of OpenVPN server)
+        ```
+        iptables -A FORWARD -i enp0s8 -d 1.10.11.2 -p udp --dport 1194 -o tun0 -j ACCEPT
+        ```
+    - the following rule allow to forward packet from tun0 (tunnel to WAN) to enp0s8 (interface to VXLAN) when the source ip is 1.10.11.2 (ip of OpenVPN server)
+        ```
+        iptables -A FORWARD -i tun0 -s 1.10.11.2 -p udp --sport 1194 -o enp0s8 -j ACCEPT
+        ```
+    - the following rules allow to forward ICMP packets from enp0s8 (interface to VXLAN) and tun0 (tunnel to WAN) and viceversa
+        ```
+        iptables -A FORWARD -i enp0s8 -p icmp -o tun0 -j ACCEPT
+        iptables -A FORWARD -i tun0 -p icmp -o enp0s8 -j ACCEPT
+        ```
+- the input chain is the following:
+    - the following rule allow to receive in input from the enp0s3 (interface to WAN) packet with source ip 1.10.11.2 and port number 1194
+        ```
+        iptables -A INPUT -i enp0s3 -s 1.10.11.2 -p udp --sport 1194 -j ACCEPT
+        ```
+        __Remark__: this rule is important to establish connection
+    - the following rules allow to receive in input ICMP packets from enp0s8 (interface to VXLAN) and tun0 (tunnel to WAN)
+        ```
+        iptables -A INPUT -i enp0s8 -p icmp -j ACCEPT
+        iptables -A INPUT -i tun0 -p icmp -j ACCEPT
+        ```
+- the output chain:
+    - the following rule allow to send in output to the enp0s3 (interface to WAN) packet with destination ip 1.10.11.2 and port number 1194
+        ```
+        iptables -A OUTPUT -o enp0s3 -d 1.10.11.2 -p udp --dport 1194 -j ACCEPT
+        ```
+        __Remark__: this rule is important to establish connection
+    - the following rules allow to send in output ICMP packets from enp0s8 (interface to VXLAN) and tun0 (tunnel to WAN)
+        ```
+        iptables -A OUTPUT -p icmp -o enp0s8 -j ACCEPT
+        iptables -A OUTPUT -p icmp -o tun0 -j ACCEPT
+        ```
+
 ## Test cases
 
 ### BGP/MPLS VPN
@@ -439,3 +662,21 @@ ip route 0.0.0.0 0.0.0.0 10.0.1.1
     ```
     ping 192.168.X.2 # where x is 1 if executed on customer-a and 0 otherwise
     ```
+
+### Overlay OpenVPN
+
+The test cases for overlay OpenVPN are represented ping between the overlay entities. An example, on client 1:
+
+- ping the server:
+    ``` 
+    ping 192.168.100.1
+    ```
+- ping the client 2:
+    ``` 
+    ping 192.168.100.105
+    ```
+- ping one host in datacenter:
+    ``` 
+    ping 2.0.10.1
+    ```
+In addition, Wireshark can be used to analyze the correct behavior of overlay OpenVPN.
