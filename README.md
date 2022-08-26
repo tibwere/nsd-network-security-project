@@ -22,9 +22,13 @@ __Authors__:
     2. [Server configuration](#server-configuration)
     3. [Client 1 configuration](#client-1-configuration)
     4. [Client 2 configuration](#client-2-configuration)
+4. [EVPN/VXLAN configuration](#evpnvxlan-configuration)
+   1. [Spines](#spines)
+   2. [Leaves](#leaves)
+   3. [Servers](#servers)
 
-4. [Firewall configuration](#firewall-configuration) 
-5. [Test cases](#test-cases)
+5. [Firewall configuration](#firewall-configuration) 
+6. [Test cases](#test-cases)
 
 ## Network topology
 
@@ -576,6 +580,57 @@ The OpenVPN part of client 2 configuration is composed by:
     ```
     remote 1.10.11.2 1194
     ```
+
+## EVPN/VXLAN configuration
+This section shows the _two-tier leaf-spine Clos topology_ configuration adopted within the datacenter in AS 200. The specification requires:
+- EVPN/VXLAN inside the datacenter;
+- only one tenant in the datacenter with 2 broadcast domains (vlan 10, vlan 20);
+- each server has two VMs belonging to the two broadcast domains;
+- vlan 100 between linux gateway and access leaf.
+
+### Spines
+The configuration of the two spines is very similar, therefore only the one relating to the spine 1 is considered.
+
+The following commands are used to configure the IP addresses:
+```
+net add interface swp1 ip add 2.10.1.2/30
+net add interface swp2 ip add 2.20.1.2/30
+net add loopback lo ip add 2.3.3.3/32
+```
+
+OSPF configuration:
+```
+net add ospf router-id 2.3.3.3
+net add ospf network 2.10.1.0/30 area 0
+net add ospf network 2.20.1.0/30 area 0
+net add ospf network 2.3.3.3/32 area 0
+```
+
+Finally, EVPN was configured as a control plane for network virtualization with VXLAN, using the MP-eBGP mechanism in which:
+- the spines are placed in the private AS 65000;
+- leaf 1 is placed in private AS 65001;
+- leaf 2 is placed in private AS 65002.
+
+EVPN configuration:
+```
+net add bgp autonomous-system 65000
+net add bgp router-id 2.3.3.3
+net add bgp neighbor swp1 remote-as external
+net add bgp neighbor swp2 remote-as external
+net add bgp evpn neighbor swp1 activate
+net add bgp evpn neighbor swp2 activate
+```
+
+For spine 2 just change the IP addresses to those shown in the [reference topology](#network-topology).
+
+### Leaves
+TODO
+
+#### Access leaf
+TODO
+
+### Servers
+TODO
 
 ## Firewall configuration
 
