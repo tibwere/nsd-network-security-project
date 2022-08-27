@@ -630,7 +630,36 @@ TODO
 TODO
 
 ### Servers
-TODO
+The VMs were emulated by creating namespaces and adding different VLAN interfaces for each namespace.
+
+The configuration of the two servers is very similar, therefore only the one relating to the server 1 is considered.
+
+Creation of network namespaces:
+```
+ip netns add subA
+ip netns add subB
+```
+The following commands are for creating VLAN interfaces inside the network namespaces:
+```
+ip link add link enp0s8 name enp0s8.10 type vlan id 10
+ip link add link enp0s8 name enp0s8.20 type vlan id 20
+ip link set enp0s8.10 netns subA
+ip link set enp0s8.20 netns subB
+```
+Assigning IP addresses and making the network interfaces up:
+```
+ip netns exec subA ip addr add 2.0.10.1/24 dev enp0s8.10
+ip netns exec subB ip addr add 2.0.20.1/24 dev enp0s8.20
+ip link set enp0s8 up
+ip netns exec subA ip link set enp0s8.10 up
+ip netns exec subB ip link set enp0s8.20 up
+```
+Adding default routes:
+```
+ip netns exec subA ip route add default via 2.0.10.254
+ip netns exec subB ip route add default via 2.0.20.254
+```
+For server 2 just change the IP addresses to those shown in the [reference topology](#network-topology).
 
 ## Firewall configuration
 
