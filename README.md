@@ -611,12 +611,15 @@ Finally, EVPN was configured as a control plane for network virtualization with 
 - leaf 1 is placed in private AS 65001;
 - leaf 2 is placed in private AS 65002.
 
-EVPN configuration:
+BGP configuration:
 ```
 net add bgp autonomous-system 65000
 net add bgp router-id 2.3.3.3
 net add bgp neighbor swp1 remote-as external
 net add bgp neighbor swp2 remote-as external
+```
+Activation of the BGP EVPN extension:
+```
 net add bgp evpn neighbor swp1 activate
 net add bgp evpn neighbor swp2 activate
 ```
@@ -624,10 +627,112 @@ net add bgp evpn neighbor swp2 activate
 For spine 2 just change the IP addresses to those shown in the [reference topology](#network-topology).
 
 ### Leaves
-TODO
+Below is the configuration of leaf 2 because, except for the addresses, it is also valid for leaf 1, with the difference that the latter constitutes the access leaf and therefore has additional configurations.
+
+> **Note:** the VXLAN network interfaces `vni-10` and `vni-20` are L2VNI, each associated with one broadcast domain of the tenant, while the `vni-1020` is the VNI associated with the tenant for layer 3 routing across different subnets.
+
+Creation the VXLAN interfaces:
+```
+net add vxlan vni-10 vxlan id 10
+net add vxlan vni-20 vxlan id 20
+net add vxlan vni-1020 vxlan id 1020
+```
+
+Creation of a VLAN-aware bridge that contains one switch port and the VXLAN interfaces, also includes 3 VLANs:
+```
+net add bridge bridge ports vni-10,vni-20,swp1,vni-1020
+net add bridge bridge vids 10,20,50
+net add bridge bridge vlan-aware
+```
+this actually bridge the packets from the VLAN interfaces to the VXLAN tunnels.
+
+Adding the point-to-point addresses and the loopback address:
+```
+net add interface swp2 ip add 2.20.1.1/30
+net add interface swp3 ip add 2.20.2.1/30
+net add loopback lo ip add 2.2.2.2/32
+```
+
+OSPF configuration:
+```
+net add ospf router-id 2.2.2.2
+net add ospf network 2.20.1.0/30 area 0
+net add ospf network 2.20.2.0/30 area 0
+net add ospf network 2.2.2.2/32 area 0
+net add ospf passive-interface swp1
+```
+
+Local-tunnel IP specification (so the source IP in the outer header of the VXLANs) and bridge instruction to create a mapping such that all packets tagged with a VLAN ID go into the corresponding VXLAN tunnel:
+```
+net add vxlan vni-10 vxlan local-tunnelip 2.2.2.2
+net add vxlan vni-10 bridge access 10
+net add vxlan vni-20 vxlan local-tunnelip 2.2.2.2
+net add vxlan vni-20 bridge access 20
+```
+
+Adding VLANs and their IP addresses:
+```
+net add vlan 10 ip address 2.0.10.254/24
+net add vlan 20 ip address 2.0.20.254/24
+```
+
+BGP configuration:
+```
+net add bgp autonomous-system 65002
+net add bgp router-id 2.2.2.2
+net add bgp neighbor swp2 remote-as 65000
+net add bgp neighbor swp3 remote-as 65000
+```
+Activation of the BGP EVPN extension and export of VNI routes:
+```
+net add bgp evpn neighbor swp2 activate
+net add bgp evpn neighbor swp3 activate
+net add bgp evpn advertise-all-vni
+```
+
+Finally, to actually configure the L3VNI it is necessary to add another VLAN used only to bridge packets that enter an L2VNI and must exit through the L3VNI, so it is only a binding between a VLAN ID and an L3VNI:
+```
+net add vlan 50
+net add vxlan vni-1020 vxlan local-tunnelip 2.2.2.2
+net add vxlan vni-1020 bridge access 50
+```
+Configure the VRF to L3VNI mapping:
+```
+net add vrf TEN1 vni 1020
+```
+Configure the switch virtual interfaces for the L3VNI:
+```
+net add vlan 50 vrf TEN1
+net add vlan 10 vrf TEN1
+net add vlan 20 vrf TEN1
+```
+
+For leaf 1 just change the IP addresses and the AS number to those shown in the [reference topology](#network-topology).
 
 #### Access leaf
-TODO
+Since leaf 1 is the access leaf for the datacenter, it requires additional configuration.
+
+First of all, with the commands already shown above the VLAN 100 was added to communicate with the gateway and the corresponding L2VNI has also been created for the same tenant, so that packets from outside can be routed thanks to the L3VNI.
+
+Since the swp4 interface must receive packets from only one VLAN, with the following command it has been configured as an access port:
+```
+net add interface swp4 bridge access 100
+```
+EVPN in Cumulus Linux supports prefix-based routing using EVPN type-5 (prefix) routes. Type-5 routes (or prefix routes) are primarily used to route to destinations outside of the datacenter fabric.
+
+The following commands are required in the tenant VRF to announce IP prefixes in the BGP RIB as EVPN type-5 routes:
+```
+net add bgp vrf TEN1 autonomous-system 65001
+net add bgp vrf TEN1 l2vpn evpn advertise ipv4 unicast
+```
+The following command permits to originate a default type-5 route in EVPN, so that any leaf within the datacenter follows the default route towards the access leaf for all external traffic (towards the WAN):
+```
+net add bgp vrf TEN1 l2vpn evpn default-originate ipv4
+```
+Finally, setting the gateway IP address for VLAN 100:
+```
+net add vlan 100 ip gateway 2.10.10.1
+```
 
 ### Servers
 The VMs were emulated by creating namespaces and adding different VLAN interfaces for each namespace.
