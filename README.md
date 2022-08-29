@@ -869,3 +869,16 @@ The test cases for overlay OpenVPN are represented ping between the overlay enti
     ping 2.0.10.1
     ```
 In addition, Wireshark can be used to analyze the correct behavior of overlay OpenVPN.
+
+### EVPN/VXLAN
+
+1. examine the number of remote VTEPs for each VNI from the leaves (_it should be different from 0 for VNI 10 and VNI 20_):
+    ```
+    net show evpn vni
+    ```
+2. for each VNI, check the correct type (e.g. _L2 for VNI 10 and L3 for VNI 1020_) with the previous command or seeing the VXLAN encapsulation through Wireshark capture of packets sent to the same and different broadcast domains;
+3. check the presence of the default type-5 route in the BGP RIB of the leves:
+    ```
+    net show bgp evpn route
+    ```
+4. simulates VM migration by removing current links between servers and leaves and reconnecting but swapped (_seamless migration: automatically EVPN should exchange the information of this migrated VMs, e.g. advertises the change of MAC addresses_).
