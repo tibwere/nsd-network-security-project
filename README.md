@@ -151,7 +151,7 @@ The IP interfaces were configured as follows:
     no shutdown
     ```
 
-* in order to make the correct advertisement of the prefix 1.0.0.0/9 a static route has also been added:
+* in order to make the correct advertisement of the prefix 2.0.0.0/8 a static route has also been added:
 
 ```
 ip route 2.0.0.0 255.0.0.0 null0
@@ -443,7 +443,7 @@ The overlay OpenVPN is composed by three entities:
 ```
     ./easyrsa build-client-full client1 && ./easyrsa build-client-full client2
 ```
-4. Generate Diffie-Hellman parameters for OpenVPN (_long time_):
+4. Generate Diffie-Hellman parameters for OpenVPN:
 ```
 ./easyrsa gen-dh
 ```
@@ -500,7 +500,7 @@ The OpenVPN part of server configuration is the following:
     keepalive 10 120
     ```
 
-The content of of `ccd` folder is the following:
+The content of `ccd` folder is the following:
 - a file that assigns ip 192.168.100.101 to client 1 and ip 192.168.100.102 to VPN gateway
     ```
     ifconfig-push 192.168.100.101 192.168.100.102
